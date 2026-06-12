@@ -7,6 +7,9 @@ LARGURA_TELA = 800
 ALTURA_TELA = 600
 FPS = 60
 
+# Inicialização global da câmera
+camera_x = 0
+
 # --- CLASSE DO PROJÉTIL ---
 class Projetil(pygame.sprite.Sprite):
     def __init__(self, x, y, direcao, velocidad, cor):
@@ -18,7 +21,7 @@ class Projetil(pygame.sprite.Sprite):
 
     def update(self):
         self.rect.x += self.velocidade
-        if self.rect.x < -500 or self.rect.x > 4500:
+        if self.rect.x < -500 or self.rect.x > 5500:
             self.kill()
 
 # --- CLASSE DOS OBSTÁCULOS / PLATAFORMAS ---
@@ -60,7 +63,7 @@ class Player(pygame.sprite.Sprite):
         self.atacou_foice = False
         self.atacou_magia = False
         self.cooldown_foice = 0
-        self.tempo_cooldown_foice = 60  # 60 frames = 1 segundo cravado a 60 FPS
+        self.tempo_cooldown_foice = 60  
         
         self.tempo_imune = 0 
         self.hitbox_ataque_atual = None
@@ -71,7 +74,6 @@ class Player(pygame.sprite.Sprite):
         if self.frames_desenho_ataque > 0: self.frames_desenho_ataque -= 1
         else: self.hitbox_ataque_atual = None
         
-        # Reduz o tempo de recarga da foice a cada frame
         if self.cooldown_foice > 0: 
             self.cooldown_foice -= 1
 
@@ -120,7 +122,6 @@ class Player(pygame.sprite.Sprite):
                 self.vel_y = 0
 
     def controlar_ataques(self, teclas, mouse_botoes, inimigos, projeteis_jogador, boss):
-        # MUDANÇA: O ataque só inicia se o clique for feito E o cooldown for igual a zero
         if mouse_botoes[0]:
             if not self.atacou_foice and self.cooldown_foice == 0:
                 self.ataque_foice(inimigos, boss)
@@ -136,10 +137,9 @@ class Player(pygame.sprite.Sprite):
             self.atacou_magia = False
 
     def ataque_foice(self, inimigos, boss):
-        # Ativa o cooldown imediatamente ao golpear
         self.cooldown_foice = self.tempo_cooldown_foice
         
-        alcance = 85 
+        alcance = 70 
         x_hitbox = self.rect.right if self.direcao_olhar == 1 else self.rect.left - alcance
         self.hitbox_ataque_atual = pygame.Rect(x_hitbox, self.rect.y + 5, alcance, self.rect.height - 10)
         self.frames_desenho_ataque = 10 
@@ -305,56 +305,75 @@ class BossAnjo(pygame.sprite.Sprite):
                 self.estado = "IDLE"
                 self.timer_estado = 0
         
-        if self.rect.left < 2400: self.rect.left = 2400
-        if self.rect.right > 3400: self.rect.right = 3400
+        if self.rect.left < 3600: self.rect.left = 3600
+        if self.rect.right > 4700: self.rect.right = 4700
         
         self.image.fill(self.cor_atual)
 
-    def receber_dano(self, qtd):
+    def receiver_dano(self, qtd):
         if self.estado != "CAINDO" and self.estado != "DERROTADO":
             self.vida_atual -= qtd
             if self.vida_atual < 0: self.vida_atual = 0
+            
+    def receber_dano(self, qtd):
+        self.receiver_dano(qtd)
 
 
-# --- FUNÇÃO PARA GERAR O MUNDO ---
+# --- FUNÇÃO PARA GERAR O MUNDO EXPANDIDO ---
 def inicializar_mundo():
-    global jogador, plataformas, inimigos, projeteis_jogador, projeteis_inimigos, boss, arena_fechada
+    global jogador, plataformas, inimigos, projeteis_jogador, projeteis_inimigos, boss, arena_fechada, camera_x
     jogador = Player(100, 300)
     plataformas = pygame.sprite.Group()
     inimigos = pygame.sprite.Group()
     projeteis_jogador = pygame.sprite.Group()
     projeteis_inimigos = pygame.sprite.Group()
     arena_fechada = False
+    camera_x = 0
 
     blocos_cenario = [
+        # Setor Inicial (0 - 1000)
         Plataforma(0, 500, 750, 100),       
         Plataforma(400, 380, 180, 30),      
         Plataforma(680, 280, 220, 30),      
         
+        # Setor Intermediário 1 (1000 - 2000)
         Plataforma(1000, 500, 650, 100),  
         Plataforma(1100, 380, 150, 30),
         Plataforma(1350, 280, 180, 30),  
         Plataforma(1650, 420, 300, 180),   
         Plataforma(1800, 270, 150, 30),  
 
-        Plataforma(2100, 460, 300, 140),
-        Plataforma(2400, 500, 1000, 100), 
-        Plataforma(3350, 100, 50, 400, (100, 110, 120)) 
+        # NOVO SETOR EXPANDIDO (2000 - 3300)
+        Plataforma(2050, 400, 180, 30),    
+        Plataforma(2300, 500, 550, 100),   
+        Plataforma(2450, 370, 160, 30),    
+        Plataforma(2750, 260, 150, 30),    
+        Plataforma(3000, 410, 250, 190),   
+
+        # Entrada e Nova Arena do Chefão
+        Plataforma(3350, 460, 300, 140),
+        Plataforma(3600, 500, 1200, 100),  
+        Plataforma(4750, 100, 50, 400, (100, 110, 120)) 
     ]
     plataformas.add(blocos_cenario)
 
+    # Inimigos
     inimigos.add(InimigoTerrestre(420, 325, 40))  
     inimigos.add(InimigoTerrestre(1150, 445, 80))
     inimigos.add(InimigoTerrestre(1700, 365, 60))
+    inimigos.add(InimigoTerrestre(2400, 445, 75))  
+    inimigos.add(InimigoTerrestre(3050, 355, 45))  
+    
     inimigos.add(InimigoVoador(750, 160))         
     inimigos.add(InimigoVoador(1300, 180))        
+    inimigos.add(InimigoVoador(2700, 150))        
 
-    boss = BossAnjo(2950, 380)
+    boss = BossAnjo(4150, 380)
 
 # --- SETUP INICIAL PYGAME ---
 pygame.init()
 tela = pygame.display.set_mode((LARGURA_TELA, ALTURA_TELA))
-pygame.display.set_caption("TCC - Morte: Ritmo de Combate")
+pygame.display.set_caption("O Nome do Jogo") 
 relogio = pygame.time.Clock()
 fonte = pygame.font.SysFont("Arial", 22)
 fonte_titulo = pygame.font.SysFont("Arial", 48, bold=True)
@@ -371,11 +390,17 @@ while rodando:
     for evento in pygame.event.get():
         if evento.type == pygame.QUIT:
             rodando = False
+            
         if evento.type == pygame.KEYDOWN:
             if estado_jogo == "MENU" and evento.key == pygame.K_RETURN:
                 estado_jogo = "JOGANDO"
             if (estado_jogo == "GAME_OVER" or estado_jogo == "VITORIA") and evento.key == pygame.K_r:
                 inicializar_mundo()
+                estado_jogo = "JOGANDO"
+                
+        # Inicia o jogo também ao CLICAR com o mouse na tela de menu
+        if evento.type == pygame.MOUSEBUTTONDOWN and evento.button == 1:
+            if estado_jogo == "MENU":
                 estado_jogo = "JOGANDO"
 
     # 2. LÓGICA DO GAMEPLAY
@@ -387,9 +412,9 @@ while rodando:
         projeteis_jogador.update()
         projeteis_inimigos.update()
 
-        if jogador.rect.x > 2420 and not arena_fechada:
+        if jogador.rect.x > 3620 and not arena_fechada:
             arena_fechada = True
-            parede_traseira = Plataforma(2380, 100, 40, 400, (100, 110, 120))
+            parede_traseira = Plataforma(3580, 100, 40, 400, (100, 110, 120))
             plataformas.add(parede_traseira)
 
         for inimigo in inimigos:
@@ -425,15 +450,15 @@ while rodando:
     tela.fill((18, 18, 24)) 
 
     if estado_jogo == "MENU":
-        t1 = fonte_titulo.render("A JORNADA DA MORTE", True, (240, 240, 240))
-        t2 = fonte.render("Controles: A/D (Mover) - W/Espaço (Pular Alto) - Clique Esq. (Foice) - R (Magia)", True, (180, 180, 180))
-        t3 = fonte.render("Pressione ENTER para iniciar", True, (0, 200, 100))
+        t1 = fonte_titulo.render("O NOME DO JOGO", True, (240, 240, 240)) 
+        t2 = fonte.render("Controles: A/D (Mover) - W/Espaço (Pular Alto) - Clique Esq. (Ataque 1) - R (Ataque 2)", True, (180, 180, 180))
+        t3 = fonte.render("Pressione ENTER ou CLIQUE na tela para iniciar", True, (0, 200, 100))
         tela.blit(t1, (LARGURA_TELA//2 - t1.get_width()//2, 180))
         tela.blit(t2, (LARGURA_TELA//2 - t2.get_width()//2, 300))
         tela.blit(t3, (LARGURA_TELA//2 - t3.get_width()//2, 380))
 
     elif estado_jogo == "GAME_OVER":
-        t_go = fonte_titulo.render("FALHA NA CEIFA", True, (255, 50, 50))
+        t_go = fonte_titulo.render("DERROTA", True, (255, 50, 50)) 
         t_res = fonte.render("Pressione R para tentar novamente", True, (200, 200, 200))
         tela.blit(t_go, (LARGURA_TELA//2 - t_go.get_width()//2, 220))
         tela.blit(t_res, (LARGURA_TELA//2 - t_res.get_width()//2, 320))
@@ -441,15 +466,15 @@ while rodando:
     elif estado_jogo == "VITORIA":
         for plat in plataformas: tela.blit(plat.image, (plat.rect.x - camera_x, plat.rect.y))
         tela.blit(boss.image, (boss.rect.x - camera_x, boss.rect.y))
-        tela.blit(jogador.image, (jogador.rect.x - camera_x, boss_y := jogador.rect.y))
+        tela.blit(jogador.image, (jogador.rect.x - camera_x, jogador.rect.y))
         
         overlay = pygame.Surface((LARGURA_TELA, ALTURA_TELA), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 150))
         tela.blit(overlay, (0, 0))
 
-        t_vi = fonte_titulo.render("VITÓRIA CONCLUÍDA", True, (0, 255, 150))
-        t_sub = fonte.render("O Arcanjo desabou. A colheita foi realizada com sucesso.", True, (220, 220, 220))
-        t_res = fonte.render("Pressione R para recomeçar o teste", True, (150, 150, 150))
+        t_vi = fonte_titulo.render("VITÓRIA", True, (0, 255, 150))
+        t_sub = fonte.render("Você concluiu o nível com sucesso.", True, (220, 220, 220))
+        t_res = fonte.render("Pressione R para recomeçar", True, (150, 150, 150))
         tela.blit(t_vi, (LARGURA_TELA//2 - t_vi.get_width()//2, 180))
         tela.blit(t_sub, (LARGURA_TELA//2 - t_sub.get_width()//2, 280))
         tela.blit(t_res, (LARGURA_TELA//2 - t_res.get_width()//2, 360))
@@ -478,18 +503,10 @@ while rodando:
         if jogador.hitbox_ataque_atual:
             pygame.draw.rect(tela, (0, 180, 255), (jogador.hitbox_ataque_atual.x - camera_x, jogador.hitbox_ataque_atual.y, jogador.hitbox_ataque_atual.width, jogador.hitbox_ataque_atual.height), 2)
 
-        # UI FIXA (HUD)
-        pygame.draw.rect(tela, (30, 30, 40), (15, 15, 200, 85)) # Expandida para caber a info do Cooldown
+        # UI FIXA (HUD) - ALTURA REDUZIDA E TEXTO DE COOLDOWN REMOVIDO
+        pygame.draw.rect(tela, (30, 30, 40), (15, 15, 200, 60)) 
         tela.blit(fonte.render(f"Vida: {jogador.vida_atual}/{jogador.vida_maxima}", True, (255, 80, 80)), (20, 20))
         tela.blit(fonte.render(f"Mana: {jogador.mana_atual}/{jogador.mana_maxima}", True, (0, 180, 255)), (20, 45))
-        
-        # Indicador visual textual do Cooldown da Foice
-        if jogador.cooldown_foice == 0:
-            tela.blit(fonte.render("Foice: PRONTA", True, (0, 255, 100)), (20, 70))
-        else:
-            # Mostra os segundos restantes de forma amigável
-            segundos_restantes = jogador.cooldown_foice / 60
-            tela.blit(fonte.render(f"Foice: {segundos_restantes:.1f}s", True, (200, 150, 30)), (20, 70))
 
         if arena_fechada and boss.vida_atual > 0:
             largura_barra_boss = 500
@@ -497,7 +514,7 @@ while rodando:
             pygame.draw.rect(tela, (50, 20, 20), (x_barra, 25, largura_barra_boss, 20))
             proporcao_vida = boss.vida_atual / boss.vida_maxima
             pygame.draw.rect(tela, (255, 215, 0), (x_barra, 25, int(largura_barra_boss * proporcao_vida), 20))
-            t_boss_name = fonte.render("ARCANJO SUPREMO", True, (255, 255, 255))
+            t_boss_name = fonte.render("CHEFÃO", True, (255, 255, 255))
             tela.blit(t_boss_name, (LARGURA_TELA // 2 - t_boss_name.get_width() // 2, 48))
 
     pygame.display.flip()
